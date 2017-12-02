@@ -1,25 +1,27 @@
 package com.example.hp.smss;
 
 import android.content.ContentResolver;
-import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.net.Uri;
+import android.os.AsyncTask;
+import android.os.Bundle;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.ListView;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 
 public class MainActivity extends AppCompatActivity {
-
+    String msgData=null;
+    ArrayList<String> numbers;
+    ArrayList<String> messages;
     private static MainActivity inst;
     ArrayList<String> smsMessagesList = new ArrayList<String>();
     ListView smsListView;
@@ -68,13 +70,25 @@ public class MainActivity extends AppCompatActivity {
         Cursor smsInboxCursor = contentResolver.query(Uri.parse("content://sms/inbox"), null, null, null, null);
         int indexBody = smsInboxCursor.getColumnIndex("body");
         int indexAddress = smsInboxCursor.getColumnIndex("address");
-        if (indexBody < 0 || !smsInboxCursor.moveToFirst()) return;
-        arrayAdapter.clear();
-        do {
-            String str = "SMS From: " + smsInboxCursor.getString(indexAddress) +
-                    "\n" + smsInboxCursor.getString(indexBody) + "\n";
-            arrayAdapter.add(str);
-        } while (smsInboxCursor.moveToNext());
+
+        if (indexBody < 0 || !smsInboxCursor.moveToFirst()) {
+            msgData=new String();
+            numbers=new ArrayList<String>();
+            messages=new ArrayList<String>();
+
+            arrayAdapter.clear();
+            do {
+                String str = "SMS From: " + smsInboxCursor.getString(indexAddress) +
+                        "\n" + smsInboxCursor.getString(indexBody) + "\n";
+                arrayAdapter.add(str);
+            } while (smsInboxCursor.moveToNext());
+            if (msgData != null) {
+                taskSorting obj = new taskSorting();
+                obj.setData(numbers, messages);
+                obj.execute();
+
+            }
+        }
     }
 
     public void updateList(final String smsMessage) {
@@ -99,6 +113,49 @@ public class MainActivity extends AppCompatActivity {
         }
 
 
+    }
+    class taskSorting extends AsyncTask<Void,Void,Void>
+    {
+        ArrayList<String> numbers;
+        ArrayList<String> messages;
+
+        ArrayList<String> sortedNumbers;//to contain just numbers that are appeared with you while chatting
+
+        ArrayList<ArrayList<String>> sortedMessages;// contain messages each index contain array, and each array contains messages recieved corresponding to number stored at same index on numbers array
+        public void setData(ArrayList<String> numbers,ArrayList<String> messages)
+        {
+            this.numbers=numbers;
+            this.messages=messages;
+        }
+        @Override
+        protected Void doInBackground(Void... voids) {
+
+
+            //to remove duplications from numbers array
+
+            LinkedHashSet<String> tempNumbers=new LinkedHashSet<>();
+            tempNumbers.addAll(numbers);
+            sortedNumbers.addAll(tempNumbers);
+
+            //to get messages from same number
+            ArrayList<String> messagesUnderSameNumber=new ArrayList<>();
+            for(int i=0;i<sortedNumbers.size();i++)
+            {
+                String currentNumber=sortedNumbers.get(i);
+                messagesUnderSameNumber=new ArrayList<String>();
+                for(int j=0;j<messages.size();j++)
+                {
+                    if(numbers.get(j)==currentNumber)
+                    {
+                        messagesUnderSameNumber.add(messages.get(j));
+                    }
+                }
+                sortedMessages.add(messagesUnderSameNumber);
+
+            }
+
+            return null;
+        }
     }
 
 }
